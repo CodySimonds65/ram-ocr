@@ -5,3 +5,7 @@ RAM OCR is a standalone Apache-2.0 plugin for account-relative text and color tr
 No frames are retained by the trigger model. Diagnostic image export is an explicit user action. The host rejects unavailable or minimized targets without activating them.
 
 Build with the .NET 8 Windows SDK. The release package contains `plugin.json`, `ram-ocr.exe`, `plugin.zip`, `plugin.sha256`, and a pinned Ed25519 signature.
+
+## Official releases
+
+The repository workflow publishes a release from a matching `vMAJOR.MINOR.PATCH` tag or a manual dispatch. Configure `RAM_PLUGIN_SIGNING_KEY` (Ed25519 private PEM) and `RAM_PLUGIN_SIGNING_PUBLIC_KEY` (matching public PEM) repository secrets first. The public key must match the launcher trust anchor; missing secrets fail closed and never publish unsigned official assets.
