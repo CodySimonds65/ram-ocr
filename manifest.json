@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.codysimonds65.ram.ocr",
+  "name": "RAM OCR",
+  "version": "0.1.0",
+  "contractVersion": "1.0",
+  "publisher": "CodySimonds65",
+  "description": "Window-relative OCR and color triggers for managed Roblox clients.",
+  "capabilities": ["host.accounts.read", "host.events.account-lifecycle", "host.theme.read", "host.input.background", "host.actions.invoke", "system.read-screen"],
+  "entryPoint": "ram-ocr.exe",
+  "autostartDefault": false
+}
