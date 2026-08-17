@@ -3,5 +3,5 @@
     <OutputType>WinExe</OutputType><TargetFramework>net8.0-windows</TargetFramework><UseWPF>true</UseWPF>
     <Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings><AssemblyName>ram-ocr</AssemblyName><RootNamespace>RamOcr</RootNamespace><Version>0.1.0</Version><ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
-  <ItemGroup><ApplicationDefinition Remove="**/App.xaml"/><ApplicationDefinition Include="src\App.xaml"><Generator>MSBuild:Compile</Generator><SubType>Designer</SubType></ApplicationDefinition><Compile Remove="tests\**\*.cs"/><None Remove="tests\**\*"/></ItemGroup>
+  <ItemGroup><ApplicationDefinition Remove="**/App.xaml" /><ApplicationDefinition Include="src\App.xaml"><Generator>MSBuild:Compile</Generator><SubType>Designer</SubType></ApplicationDefinition><Compile Remove="tests\**\*.cs" /><None Remove="tests\**\*" /></ItemGroup>
 </Project>
