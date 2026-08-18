@@ -12,7 +12,15 @@ public sealed class PluginClient : IAsyncDisposable
     public PluginClient(string pipeName, string token, string pluginId, string manifestPath)
     { _pipe = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous); _token = token; _pluginId = pluginId; _manifestPath = manifestPath; using var doc = JsonDocument.Parse(File.ReadAllText(manifestPath)); _capabilities = doc.RootElement.GetProperty("capabilities").EnumerateArray().Select(item => item.GetString()!).ToArray(); }
     public static PluginClient? FromArgs(string[] args)
-    { var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase); for (var i = 0; i + 1 < args.Length; i++) if (args[i].StartsWith("--", StringComparison.Ordinal)) values[args[i][2..]] = args[++i]; if (!values.TryGetValue("pipe", out var pipe) || !values.TryGetValue("plugin-id", out var id)) return null; if (!values.TryGetValue("token", out var token) && values.TryGetValue("token-file", out var tokenFile)) { token = File.ReadAllText(tokenFile).Trim(); try { File.Delete(tokenFile); } catch { } } if (string.IsNullOrWhiteSpace(token)) return null; var manifest = Path.Combine(AppContext.BaseDirectory, "plugin.json"); if (!File.Exists(manifest)) manifest = Path.Combine(AppContext.BaseDirectory, "manifest.json"); return File.Exists(manifest) ? new PluginClient(pipe, token, id, manifest) : null; }
+    {
+        var values = ParseArgs(args);
+        if (!values.TryGetValue("pipe", out var pipe) || !values.TryGetValue("plugin-id", out var id)) return null;
+        if (!values.TryGetValue("token", out var token) && values.TryGetValue("token-file", out var tokenFile)) { token = File.ReadAllText(tokenFile).Trim(); try { File.Delete(tokenFile); } catch { } }
+        if (string.IsNullOrWhiteSpace(token)) return null;
+        var manifest = Path.Combine(AppContext.BaseDirectory, "plugin.json");
+        if (!File.Exists(manifest)) manifest = Path.Combine(AppContext.BaseDirectory, "manifest.json");
+        return File.Exists(manifest) ? new PluginClient(pipe, token, id, manifest) : null;
+    }
     public async Task ConnectAsync(CancellationToken cancellationToken = default)
     { await _pipe.ConnectAsync(5000, cancellationToken); var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(await File.ReadAllBytesAsync(_manifestPath, cancellationToken))).ToLowerInvariant(); using var currentProcess = System.Diagnostics.Process.GetCurrentProcess(); await SendAsync("plugin.hello", new { pluginId = _pluginId, token = _token, protocolMajor = 1, protocolMinor = 0, manifestSha256 = hash, declaredCapabilities = _capabilities, processId = Environment.ProcessId, processStartTimeUtcTicks = currentProcess.StartTime.ToUniversalTime().Ticks }, cancellationToken); var accepted = await ReadAsync(cancellationToken) ?? throw new InvalidDataException("Plugin host closed the handshake."); if (!string.Equals(accepted.Type, "host.accept", StringComparison.Ordinal)) throw new InvalidDataException("Plugin host rejected the handshake."); }
     public async Task SendAsync(string type, object payload, CancellationToken cancellationToken = default)
@@ -26,6 +34,20 @@ public sealed class PluginClient : IAsyncDisposable
     { var header = new byte[4]; if (!await ReadExactlyAsync(header, cancellationToken)) return null; var length = BinaryPrimitives.ReadInt32LittleEndian(header); if (length <= 0 || length > 1024 * 1024) throw new InvalidDataException("Plugin message too large."); var bytes = new byte[length]; if (!await ReadExactlyAsync(bytes, cancellationToken)) return null; return JsonSerializer.Deserialize<Envelope>(bytes, Json.Options); }
     private async Task<bool> ReadExactlyAsync(byte[] buffer, CancellationToken cancellationToken)
     { var offset = 0; while (offset < buffer.Length) { var read = await _pipe.ReadAsync(buffer.AsMemory(offset), cancellationToken); if (read == 0) return false; offset += read; } return true; }
+    private static Dictionary<string, string> ParseArgs(string[] args)
+    {
+        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        for (var i = 0; i < args.Length; i++)
+        {
+            if (!args[i].StartsWith("--", StringComparison.Ordinal)) continue;
+            var key = args[i][2..];
+            if (key.Length == 0) continue;
+            var value = "true";
+            if (i + 1 < args.Length && !args[i + 1].StartsWith("--", StringComparison.Ordinal)) value = args[++i];
+            result[key] = value;
+        }
+        return result;
+    }
     public async ValueTask DisposeAsync() { _writeGate.Dispose(); await _pipe.DisposeAsync(); }
     private sealed record Envelope(string Type, string RequestId, JsonElement Payload, int ProtocolMajor = 1, int ProtocolMinor = 0);
     private static class Json { public static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web); }
