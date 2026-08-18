@@ -1,4 +1,5 @@
 using RamOcr;
+using System.Reflection;
 static void Require(bool value, string message) { if (!value) throw new InvalidOperationException(message); }
 var trigger = new OcrTrigger { Text = "banner", TextMode = TextMatchMode.Contains };
 Require(TextMatcher.Evaluate("A BANNER appeared", trigger).Matches, "Text matching failed.");
@@ -13,5 +14,14 @@ var tokenPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".token");
 await File.WriteAllTextAsync(tokenPath, "test-token");
 var launchClient = PluginClient.FromArgs(["--ram-plugin", "--pipe", "test-pipe", "--token-file", tokenPath, "--plugin-id", "io.github.codysimonds65.ram.ocr", "--data", "test-data"]);
 Require(launchClient is not null && !File.Exists(tokenPath), "Plugin launch arguments did not preserve the host pipe and token-file values.");
+var pluginIdField = typeof(PluginClient).GetField("_pluginId", BindingFlags.Instance | BindingFlags.NonPublic);
+var tokenField = typeof(PluginClient).GetField("_token", BindingFlags.Instance | BindingFlags.NonPublic);
+Require((string?)pluginIdField?.GetValue(launchClient) == "io.github.codysimonds65.ram.ocr", "Plugin launch arguments did not preserve the plugin ID.");
+Require((string?)tokenField?.GetValue(launchClient) == "test-token", "Plugin launch arguments did not preserve the token.");
 await launchClient!.DisposeAsync();
+Require(PluginClient.FromArgs(["--ram-plugin", "--pipe"]) is null, "A missing pipe value was accepted.");
+Require(PluginClient.FromArgs(["--ram-plugin", "--pipe", "", "--plugin-id", "io.github.codysimonds65.ram.ocr", "--token", "test-token"]) is null, "An empty pipe value was accepted.");
+Require(PluginClient.FromArgs(["--ram-plugin", "--pipe", "test-pipe", "--plugin-id"]) is null, "A missing plugin ID value was accepted.");
+Require(PluginClient.FromArgs(["--ram-plugin", "--pipe", "test-pipe", "--plugin-id", "io.github.codysimonds65.ram.ocr", "--token-file"]) is null, "A missing token-file value was accepted.");
+Require(PluginClient.FromArgs(["--ram-plugin", "--pipe", "test-pipe", "--plugin-id", "io.github.codysimonds65.ram.ocr", "--token-file", Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".missing")]) is null, "A missing token file was not rejected safely.");
 Console.WriteLine("RAM OCR tests passed.");
