@@ -22,7 +22,19 @@ public sealed record OcrTrigger
     public int Tolerance { get; init; } = 20;
     public double RequiredMatchPercentage { get; init; } = 0.6;
     public TimeSpan Cooldown { get; init; } = TimeSpan.FromSeconds(5);
+    public IReadOnlyList<OcrInputAction> Actions { get; init; } = [];
 }
+
+public sealed record OcrInputAction(
+    string Kind,
+    int VirtualKey = 0,
+    int ScanCode = 0,
+    bool Extended = false,
+    int Button = 0,
+    int WheelDelta = 0,
+    double NormalizedX = 0,
+    double NormalizedY = 0,
+    long OffsetMicroseconds = 0);
 
 public readonly record struct Rgba32(byte R, byte G, byte B, byte A);
 public readonly record struct TriggerEvaluation(bool Matches, double Confidence, string Detail);
