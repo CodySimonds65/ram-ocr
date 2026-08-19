@@ -2,6 +2,7 @@ namespace RamOcr;
 
 public interface IOcrTextRecognizer
 {
+    bool IsAvailable => true;
     Task<string> RecognizeAsync(ReadOnlyMemory<Rgba32> pixels, CancellationToken cancellationToken);
 }
 
@@ -60,9 +61,15 @@ public sealed class ForegroundOcrRunner
                 var accountTriggers = triggers.Where(trigger => string.IsNullOrWhiteSpace(trigger.AccountId) || trigger.AccountId == liveAccount.AccountId).ToArray();
                 await using var capture = _captureFactory(liveAccount);
                 var fired = 0;
+                var unsupportedText = false;
                 foreach (var trigger in accountTriggers)
                 {
                     var pixels = await capture.CaptureAsync(trigger.Region.Normalize(), cancellationToken).ConfigureAwait(false);
+                    if (trigger.Kind == TriggerKind.Text && !_textRecognizer.IsAvailable)
+                    {
+                        unsupportedText = true;
+                        continue;
+                    }
                     var evaluation = trigger.Kind == TriggerKind.Color
                         ? ColorMatcher.Evaluate(pixels, trigger)
                         : TextMatcher.Evaluate(await _textRecognizer.RecognizeAsync(pixels, cancellationToken).ConfigureAwait(false), trigger);
@@ -72,7 +79,10 @@ public sealed class ForegroundOcrRunner
                     if (trigger.Actions.Count > 0)
                         await _input.SendInSessionAsync(opened.SessionId, account.AccountId, trigger.Actions, cancellationToken).ConfigureAwait(false);
                 }
-                results.Add(new(account.AccountId, true, "ok", $"Capture and trigger evaluation completed; {fired} trigger(s) fired.", fired));
+                results.Add(new(account.AccountId, !unsupportedText, unsupportedText ? "text-ocr-unavailable" : "ok",
+                    unsupportedText
+                        ? $"Capture completed; text OCR is unavailable in this build and {fired} color trigger(s) fired."
+                        : $"Capture and trigger evaluation completed; {fired} trigger(s) fired.", fired));
             }
             return results;
         }

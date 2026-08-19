@@ -38,6 +38,8 @@ public sealed class GdiWindowCapture(ManagedAccountSnapshot account) : IWindowCa
 
 public sealed class UnavailableOcrTextRecognizer : IOcrTextRecognizer
 {
+    public bool IsAvailable => false;
+
     public Task<string> RecognizeAsync(ReadOnlyMemory<Rgba32> pixels, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
